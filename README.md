@@ -29,6 +29,16 @@ This script loads lidar data and the corresponding 3D annotation file in a drive
 ## OpenPCDet data loader
 [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) is an open source project with multiple architectures implemented for lidar based 3D object detection and support of several different datasets. A CADC dataset loader has been implemented on the forked [cadc support branch](https://github.com/mpitropov/OpenPCDet/tree/cadc_support) with the [Getting started](https://github.com/mpitropov/OpenPCDet/blob/cadc_support/docs/GETTING_STARTED.md#cadc-dataset) document updated for the cadc dataset. Any issues with the data loader should be opened within this repository. As of right now there is only one difficulty level for test results.
 
+## Point Cloud to Range Image (Snow Fall Simulation Project)
+This script converts a lidar scan from the Cartesian coordinate system to the spherical coordinate system. The converted range image has two channels: range (distance) and intensity.
+
+Grayscale Image:
+![Range Image](images/2018_03_06_0033_range_image.png)
+
+Colored Image :
+![Range Image Color](images/2018_03_06_0033_range_image_color.png)
+
+
 ## Additional scripts
 Please view [asvath's](https://github.com/asvath) [cadcd](https://github.com/asvath/cadcd) repository.
 

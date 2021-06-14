@@ -12,23 +12,23 @@ seq = '0069'
 DISTORTED = False
 MOVE_FORWARD = True
 base_path = "/media/matthew/WAVELAB_2TB/winter"
-calib_path = "/media/matthew/WAVELAB_2TB/winter/calib/";
+calib_path = "/media/matthew/WAVELAB_2TB/winter/calib/"
 
 if DISTORTED:
   path_type = 'raw'
 else:
   path_type = 'processed'
 
-img_path = base_path + "/data/" + seq + "/" + path_type + "/image_0" + cam + "/data/" + format(frame, '010') + ".png";
-annotations_file = base_path + "/data/" + seq + "/" + '/2d_annotations.json';
+img_path = base_path + "/data/" + seq + "/" + path_type + "/image_0" + cam + "/data/" + format(frame, '010') + ".png"
+annotations_file = base_path + "/data/" + seq + "/" + '/2d_annotations.json'
 
 # load calibration dictionary
-calib = load_calibration.load_calibration(calib_path);
+calib = load_calibration.load_calibration(calib_path)
 
 # Projection matrix from camera to image frame
-T_IMG_CAM = np.eye(4);
-T_IMG_CAM[0:3,0:3] = np.array(calib['CAM0' + cam]['camera_matrix']['data']).reshape(-1, 3);
-T_IMG_CAM = T_IMG_CAM[0:3,0:4]; # remove last row
+T_IMG_CAM = np.eye(4)
+T_IMG_CAM[0:3,0:3] = np.array(calib['CAM0' + cam]['camera_matrix']['data']).reshape(-1, 3)
+T_IMG_CAM = T_IMG_CAM[0:3,0:4] # remove last row
 
 dist_coeffs = np.array(calib['CAM0' + cam]['distortion_coefficients']['data'])
 
@@ -43,7 +43,7 @@ img_h, img_w = img.shape[:2]
 # Add each box to image
 for camera_response in annotations_data[frame]['camera_responses']:
   if camera_response['camera_used'] != int(cam):
-    continue;
+    continue
 
   for annotation in camera_response['annotations']:
     left = int(annotation['left'])

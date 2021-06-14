@@ -4,39 +4,39 @@ from scipy.spatial.transform import Rotation as R
 import json
 import matplotlib.patches as patches
 
-
-frame = 12
-cam = '0'
-seq = '0033'
+### Config ###
+date = '2018_03_06'
+seq = '0001'
+frame_id = 33
+cam_id = '0'
 DISTORTED = False
 MOVE_FORWARD = True
 DISPLAY_LIDAR = False
 DISPLAY_CUBOID_CENTER = False
 MIN_CUBOID_DIST = 40.0
 
-BASE = '/media/matthew/WAVELAB_2TB/winter/data/'
-# BASE = '/media/matthew/MOOSE-4TB/2019_02_27/'
-# BASE = '/media/matthew/MOOSE-4TB/2018_03_06/data/'
-# BASE = '/media/matthew/MOOSE-4TB/2018_03_07/data/'
+BASE = '../../../dataset/cadcd/'
+OUTPUT = 'output/'
 
 if DISTORTED:
   path_type = 'raw'
 else:
-  path_type = 'processed'
+  path_type = 'labeled'
 
-lidar_path = BASE + seq + "/" + path_type + "/lidar_points/data/" + format(frame, '010') + ".bin";
-calib_path = "/media/matthew/WAVELAB_2TB/winter/calib/";
-img_path =  BASE + seq + "/" + path_type + "/image_0" + cam + "/data/" + format(frame, '010') + ".png";
-annotations_path =  BASE + seq + "/3d_ann.json";
+lidar_path = BASE + '/' + date + '/' + seq + "/" + path_type + "/lidar_points/data/" + format(frame_id, '010') + ".bin"
+calib_path = BASE + '/' + date + "/calib"
+img_path =  BASE + '/' + date + '/' + seq + "/" + path_type + "/image_0" + cam_id + "/data/" + format(frame_id, '010') + ".png"
+annotations_path =  BASE + '/' + date + '/' + seq + "/3d_ann.json"
+######
 
-def bev(s1,s2,f1,f2,frame,lidar_path,annotations_path):
+def bev(s1,s2,f1,f2,frame_id,lidar_path,annotations_path):
     '''
 
     :param s1: example 15 (15 meter to the left of the car)
     :param s2: s2 meters from the right of the car
     :param f1: f1 meters from the front of the car
     :param f2: f2 meters from the back of the car
-    :param frame: the frame number
+    :param frame_id: the frame number
     :return:
     '''
 
@@ -48,7 +48,7 @@ def bev(s1,s2,f1,f2,frame,lidar_path,annotations_path):
     #scan_data is a single row of all the lidar values
     # 2D array where each row contains a point [x, y, z, intensity]
     #we covert scan_data to format said above
-    lidar = scan_data.reshape((-1, 4));
+    lidar = scan_data.reshape((-1, 4))
 
     lidar_x = lidar[:,0]
     lidar_y = lidar[:,1]
@@ -82,7 +82,7 @@ def bev(s1,s2,f1,f2,frame,lidar_path,annotations_path):
 
 
     '''
-    tracklets 
+    tracklets
     '''
 
     # Load 3d annotations
@@ -92,7 +92,7 @@ def bev(s1,s2,f1,f2,frame,lidar_path,annotations_path):
 
     # Add each cuboid to image
     '''
-    Rotations in 3 dimensions can be represented by a sequece of 3 rotations around a sequence of axes. 
+    Rotations in 3 dimensions can be represented by a sequece of 3 rotations around a sequence of axes.
     In theory, any three axes spanning the 3D Euclidean space are enough. In practice the axes of rotation are chosen to be the basis vectors.
     The three rotations can either be in a global frame of reference (extrinsic) or in a body centred frame of refernce (intrinsic),
     which is attached to, and moves with, the object under rotation
@@ -118,8 +118,8 @@ def bev(s1,s2,f1,f2,frame,lidar_path,annotations_path):
     y_3 = []
     y_4 =[]
 
-    for cuboid in annotations_data[frame]['cuboids']:
-        T_Lidar_Cuboid = np.eye(4);  # identify matrix
+    for cuboid in annotations_data[frame_id]['cuboids']:
+        T_Lidar_Cuboid = np.eye(4)  # identify matrix
         T_Lidar_Cuboid[0:3, 0:3] = R.from_euler('z', cuboid['yaw'],
                                                 degrees=False).as_matrix();  # rotate the identity matrix
         T_Lidar_Cuboid[0][3] = cuboid['position']['x'];  # center of the tracklet, from cuboid to lidar
@@ -133,26 +133,26 @@ def bev(s1,s2,f1,f2,frame,lidar_path,annotations_path):
                 x_trunc.append(cuboid['position']['x'])
                 y_trunc.append(cuboid['position']['y'])
 
-                width = cuboid['dimensions']['x'];
-                length = cuboid['dimensions']['y'];
-                height = cuboid['dimensions']['z'];
+                width = cuboid['dimensions']['x']
+                length = cuboid['dimensions']['y']
+                height = cuboid['dimensions']['z']
                 radius = 3
 
 
                 #the top view of the tracklet in the "cuboid frame". The cuboid frame is a cuboid with origin (0,0,0)
                 #we are making a cuboid that has the dimensions of the tracklet but is located at the origin
                 front_right_top = np.array(
-                    [[1, 0, 0, length / 2], [0, 1, 0, width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]]);
+                    [[1, 0, 0, length / 2], [0, 1, 0, width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]])
 
                 front_left_top = np.array(
-                    [[1, 0, 0, length / 2], [0, 1, 0, -width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]]);
+                    [[1, 0, 0, length / 2], [0, 1, 0, -width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]])
 
 
                 back_right_top = np.array(
-                    [[1, 0, 0, -length / 2], [0, 1, 0, width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]]);
+                    [[1, 0, 0, -length / 2], [0, 1, 0, width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]])
 
                 back_left_top = np.array(
-                    [[1, 0, 0, -length / 2], [0, 1, 0, -width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]]);
+                    [[1, 0, 0, -length / 2], [0, 1, 0, -width / 2], [0, 0, 1, height / 2], [0, 0, 0, 1]])
 
                 # Project to lidar
 
@@ -229,7 +229,7 @@ def bev(s1,s2,f1,f2,frame,lidar_path,annotations_path):
     ax.xaxis.set_visible(False)  # Do not draw axis tick marks
     ax.yaxis.set_visible(False)  # Do not draw axis tick marks
     plt.xlim([0, x_max])
-    plt.ylim([0, y_max])  
-    fig.savefig("/home/matthew/Desktop/bev_" + str(frame) + ".png", dpi=dpi, bbox_inches='tight', pad_inches=0.0)
+    plt.ylim([0, y_max])
+    fig.savefig(OUTPUT + "bev_" + str(frame_id) + ".png", dpi=dpi, bbox_inches='tight', pad_inches=0.0)
 
-bev(50,50,50,50,frame,lidar_path,annotations_path)
+bev(50,50,50,50,frame_id,lidar_path,annotations_path)
