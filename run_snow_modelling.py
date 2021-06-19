@@ -13,6 +13,9 @@ VERBOSE = True
 date = '2018_03_06'
 seq = '0001'
 frame_id = 33
+# date = '2019_02_27'
+# seq = '0004'
+# frame_id = 50
 cam_id = '0'
 DISTORTED = False
 
@@ -66,7 +69,7 @@ class SensorData:
 
     def get_azimuth_index(self, input_angle):
         azimuth = (input_angle + 360 ) % 360 # Convert to positive angles
-        return int(round(self.azimuth_angles_count * azimuth / 360) - 1)
+        return int(round((self.azimuth_angles_count - 1) * azimuth / 360))
 
 
     # If channel_count=1: range channel
@@ -124,7 +127,7 @@ class SensorData:
 
 
     # Inverse Sensor Model
-    def spherical_to_cartesian(self, data, front_axis='y'):
+    def spherical_to_cartesian(self, data):
         azimuth = data[:, 0]
         elevation = data[:, 1]
         range = data[:, 2]
@@ -132,19 +135,14 @@ class SensorData:
 
         cos_e = np.cos(elevation)
 
-        if front_axis == 'x':
-            x = np.multiply(range, np.multiply(np.cos(azimuth), cos_e))
-            y = np.multiply(range, np.multiply(np.sin(azimuth), cos_e))
-            z = np.multiply(range, np.sin(elevation))
-        elif front_axis == 'y':
-            x = np.multiply(range, np.multiply(cos_e, np.sin(azimuth)))
-            y = np.multiply(range, np.multiply(cos_e, np.cos(azimuth)))
-            z = np.multiply(range, np.sin(elevation))
+        x = np.multiply(range, np.multiply(np.cos(azimuth), cos_e))
+        y = np.multiply(range, np.multiply(np.sin(azimuth), cos_e))
+        z = np.multiply(range, np.sin(elevation))
 
         return np.vstack((x, y, z, intensity)).T
 
     # Forward Sensor Model
-    def cartesian_to_spherical(self, data, front_axis='y'):
+    def cartesian_to_spherical(self, data):
         origin = (0, 0, 0)
         x = data[:, 0]
         y = data[:, 1]
@@ -153,10 +151,7 @@ class SensorData:
 
         range = np.linalg.norm([(x, y, z), origin])
 
-        if front_axis == 'x':
-            azimuth = np.arctan2(y, x)
-        elif front_axis == 'y':
-            azimuth = np.arctan2(x, y)
+        azimuth = np.arctan2(y, x)
         
         elevation = np.arcsin(np.divide(z, range))
 
