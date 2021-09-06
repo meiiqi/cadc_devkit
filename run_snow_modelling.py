@@ -10,12 +10,12 @@ DEBUG = False
 VERBOSE = True
 
 ### Config ###
-date = '2018_03_06'
-seq = '0001'
-frame_id = 33
-# date = '2019_02_27'
-# seq = '0004'
-# frame_id = 50
+# date = '2018_03_06'
+# seq = '0001'
+# frame_id = 33
+date = '2019_02_27'
+seq = '0004'
+frame_id = 50
 cam_id = '0'
 DISTORTED = False
 
@@ -36,7 +36,8 @@ annotations_path =  BASE + '/' + date + '/' + seq + "/3d_ann.json"
 
 def azimuth_resolution(rpm):
     # 55.296 us / firing cycle
-    return rpm * 360 / 60.0 * 55.296 * 10**(-6)
+    return 0.02
+    # return rpm * 360 / 60.0 * 55.296 * 10**(-6)
 
 
 class SensorData:
@@ -51,6 +52,8 @@ class SensorData:
         # scan_data is a single row of all the lidar values
         # we covert scan_data to a 2D array where each row contains a point [x, y, z, intensity]
         self.cartesian_data = scan_data.reshape((-1, 4))
+
+        # each row contains a point[azimuth, elevation, range, intensity]
         self.spherical_data = self.cartesian_to_spherical(self.cartesian_data)
 
         # Sensor Model
@@ -70,6 +73,11 @@ class SensorData:
     def get_azimuth_index(self, input_angle):
         azimuth = (input_angle + 360 ) % 360 # Convert to positive angles
         return int(round((self.azimuth_angles_count - 1) * azimuth / 360))
+
+    def test(self, input_angle):
+        azimuth = (input_angle + 2 * np.pi ) % (2 * np.pi)
+
+        return int(round(((self.azimuth_angles_count  - 1) * azimuth) / (2 * np.pi)))
 
 
     # If channel_count=1: range channel
@@ -93,7 +101,7 @@ class SensorData:
             intensity = datapoint[3]
 
             elevation_index = self.get_elevation_index(np.degrees(elevation))
-            azimuth_index = self.get_azimuth_index(np.degrees(azimuth))
+            azimuth_index = self.test(azimuth)
 
             if self.range_img[elevation_index, azimuth_index, 0] != 0 or \
                 self.range_img[elevation_index, azimuth_index, 1] != 0:
@@ -222,14 +230,22 @@ class SensorData:
 
                 raise Exception("The conversion loss is greater than the set threshold of " + str(threshold))
 
-
+    def plot_spherical_points_distribution(self):
+        plt.figure(figsize=(15,15))
+        for col_idx, col_name in enumerate(["azimuth", "elevation", "range", "intensity"]):
+            plt.subplot(2,2, col_idx + 1)
+            plt.hist(np.degrees(self.spherical_data[:, np.r_[col_idx:col_idx+1]]), alpha=0.5)
+            plt.title("Distribution of " + col_name)
+        plt.show()
 
 def main():
 
     # Convert Point Cloud to Range Map
     lidar_data = SensorData(input_file=lidar_path, beam_count=32, rpm=600)
     lidar_data.generate_range_img()
-    lidar_data.plot_range_img()
+    # lidar_data.plot_range_img()
+    lidar_data.plot_spherical_points_distribution()
+    
 
     if TEST:
         lidar_data.test_conversion_accuracy(threshold)
