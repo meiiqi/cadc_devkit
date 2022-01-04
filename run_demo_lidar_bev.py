@@ -5,11 +5,11 @@ import json
 import matplotlib.patches as patches
 
 ### Config ###
-date = '2018_03_06'
-seq = '0001'
-frame_id = 33
+date = '2019_02_27'
+seq = '0009'
+frame_id = 0
 cam_id = '0'
-DISTORTED = False
+DISTORTED = True
 MOVE_FORWARD = True
 DISPLAY_LIDAR = False
 DISPLAY_CUBOID_CENTER = False

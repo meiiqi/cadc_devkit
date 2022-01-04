@@ -5,10 +5,10 @@ import cv2
 import load_calibration
 from lidar_utils import lidar_utils
 
-date = '2018_03_06'
-frame_id = 33
+date = '2019_02_27'
+seq = '0004'
+frame_id = 50
 cam_id = '0'
-seq = '0001'
 DISTORTED = False
 MOVE_FORWARD = True
 

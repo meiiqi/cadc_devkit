@@ -79,3 +79,9 @@ cmake-build-*/
 
 # ctags file
 .tags
+
+# Jupyter lab
+.ipynb_checkpoints
+
+# Excel duplicates to csv
+*.csv.xlsx

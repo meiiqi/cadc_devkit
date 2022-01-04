@@ -8,16 +8,21 @@ threshold = 0.00005
 
 DEBUG = False
 VERBOSE = True
+DISTORTED = False
+OVERLAPS = False
+SAVE = False
+
+point_start = 0
+point_end = None
 
 ### Config ###
-# date = '2018_03_06'
-# seq = '0001'
-# frame_id = 33
-date = '2019_02_27'
-seq = '0004'
-frame_id = 50
+date = '2018_03_06'
+seq = '0001'
+frame_id = 1
+# date = '2019_02_27'
+# seq = '0004'
+# frame_id = 50
 cam_id = '0'
-DISTORTED = False
 
 # Change this to your dataset path
 BASE = '../../../dataset/cadcd/'
@@ -29,15 +34,13 @@ else:
   path_type = 'labeled'
 
 lidar_path = BASE + date + '/' + seq + "/" + path_type + "/lidar_points/data/" + format(frame_id, '010') + ".bin"
-calib_path = BASE + date + '/' + seq + "/calib/"
-img_path =  BASE + date + '/' + seq + "/" + path_type + "/image_0" + cam_id + "/data/" + format(frame_id, '010') + ".png"
-annotations_path =  BASE + '/' + date + '/' + seq + "/3d_ann.json"
 ######
 
 def azimuth_resolution(rpm):
     # 55.296 us / firing cycle
-    return 0.02
-    # return rpm * 360 / 60.0 * 55.296 * 10**(-6)
+    # return 0.2
+    # return (rpm * 360 / 60.0 * 55.296 * 10**(-6)) / 2
+    return rpm * 360 / 60.0 * 55.296 * 10**(-6)
 
 
 class SensorData:
@@ -59,25 +62,59 @@ class SensorData:
         # Sensor Model
         self.beam_count = beam_count
         self.azimuth_resolution = azimuth_resolution(rpm)
-        self.azimuth_angles_count = int(round(360 / self.azimuth_resolution))
+        self.azimuth_angles_count = int(np.round(360 / self.azimuth_resolution))
+        self.new_azimuth_resolution = 360 / self.azimuth_angles_count
+        self.elevation_resolution = 0.2
+        self.elevation_count = int((15 + 25) / self.elevation_resolution)
+
         if VERBOSE:
             print("beam_count: ", self.beam_count)
             print("azimuth_angles_count: ", self.azimuth_angles_count)
             print("azimuth_resolution: ", self.azimuth_resolution)
+            print("new_azimuth_resolution: ", self.new_azimuth_resolution)
+            print("elevation_count: ", self.elevation_count)
 
 
     def get_elevation_index(self, input_angle):
-        return np.abs(self.sensor_elevation_angles - input_angle).argmin()
+        tmp = np.abs(self.sensor_elevation_angles - input_angle).argmin()
+        # print("elevation index: ", tmp)
+        return tmp
+
+    def elevation_test(self, input_angle):
+        elevation = (input_angle * (-1) + 15 ) % 40
+        idx =  int(np.floor(elevation / self.elevation_resolution))
+        return idx
+
 
 
     def get_azimuth_index(self, input_angle):
         azimuth = (input_angle + 360 ) % 360 # Convert to positive angles
         return int(round((self.azimuth_angles_count - 1) * azimuth / 360))
+        # return int(round((self.azimuth_angles_count ) * azimuth / 360)) - 1
 
-    def test(self, input_angle):
+
+    def azimuth_test2(self, input_angle):
+        azimuth = (input_angle + 360 ) % 360
+        idx = int(np.floor(azimuth / self.new_azimuth_resolution))
+        return idx
+
+    def azimuth_test(self, input_angle, toprint=False):
+        # print("input_angle: ", input_angle)
+        # print("input_angle: ", np.degrees(input_angle))
         azimuth = (input_angle + 2 * np.pi ) % (2 * np.pi)
-
-        return int(round(((self.azimuth_angles_count  - 1) * azimuth) / (2 * np.pi)))
+        if toprint:
+            print("azimuth:", azimuth)
+            print("azimuth:", np.degrees(azimuth))
+        intermediate = (((self.azimuth_angles_count  - 1) * azimuth) / (2 * np.pi))
+        # print("intermediate: ", intermediate)
+        # intermediate = (((self.azimuth_angles_count) * azimuth) / (2 * np.pi))
+        # print("intermediate: ", intermediate2)
+        if toprint:
+            print("(intermediate): ", intermediate)
+            print("round(intermediate): ", round(intermediate))
+        # result = int(np.around(intermediate)) - 1
+        result = int(round(intermediate))
+        return result
 
 
     # If channel_count=1: range channel
@@ -89,46 +126,73 @@ class SensorData:
             print("C: ", channel_count)
 
         self.range_img = np.zeros((self.beam_count, self.azimuth_angles_count, channel_count))
+        self.range_img_overlaps = np.zeros((self.beam_count, self.azimuth_angles_count, channel_count))
 
     def generate_range_img(self):
         overlap_count = 0
         self.init_range_img()
 
-        for i, datapoint in enumerate(self.spherical_data):
-            azimuth = datapoint[0]
-            elevation = datapoint[1]
-            range = datapoint[2]
-            intensity = datapoint[3]
+        for i, datapoint in enumerate(self.spherical_data[point_start:point_end, :]):
+            if True:
+            # if (point_start + i) not in [267, 279, 324, 438, 462, 663, 666, 764]:
+                azimuth = datapoint[0]
+                elevation = datapoint[1]
+                range = datapoint[2]
+                intensity = datapoint[3]
 
-            elevation_index = self.get_elevation_index(np.degrees(elevation))
-            azimuth_index = self.test(azimuth)
+                # print("==============")
+                # print("POINT: ", point_start + i)
+                # print("(original) azimuth: ", np.degrees(azimuth))
+                # print("(original) elevation: ", np.degrees(elevation))
+                # elevation_index = self.get_elevation_index(np.degrees(elevation))
+                elevation_index = self.get_elevation_index(np.degrees(elevation))
+                toprint = False
+                # if i==521 or i==546:
+                #     toprint =True
+                azimuth_index = self.azimuth_test2(np.degrees(azimuth))
 
-            if self.range_img[elevation_index, azimuth_index, 0] != 0 or \
-                self.range_img[elevation_index, azimuth_index, 1] != 0:
-                if DEBUG:
-                    print("Previous data:")
-                    print("range: ", self.range_img[elevation_index, azimuth_index, 0])
-                    print("intensity: ", self.range_img[elevation_index, azimuth_index, 1])
+                # if azimuth_index == 876 and elevation_index == 30:
+                #     print("POINT: ", point_start + i)
+                #     print("(original) azimuth: ", np.degrees(azimuth))
+                #     print("(original) elevation: ", np.degrees(elevation))
+                #     print("azimuth_index: ", azimuth_index)
+                #     print("elevation_index: ", elevation_index) 
 
-                    print("Incoming data:")
-                    print("i: ", i)
-                    print("azimuth: ", np.degrees(azimuth))
-                    print("elevation: ", np.degrees(elevation))
-                    print("range: ", range)
-                    print("intensity: ", intensity)
-                    print("elevation_index: ", elevation_index)            
-                    print("azimuth_index: ", azimuth_index)
-                    # raise Exception("NON ZERO")
-                
-                overlap_count = overlap_count + 1
+                if self.range_img[elevation_index, azimuth_index, 0] != 0 or \
+                    self.range_img[elevation_index, azimuth_index, 1] != 0:
+                    if DEBUG:
+                        print("*****")
+                        print("Previous data:")
+                        print("range: ", self.range_img[elevation_index, azimuth_index, 0])
+                        print("intensity: ", self.range_img[elevation_index, azimuth_index, 1])
+
+                        print("Incoming data:")
+                        print("i: ", i)
+                        print("azimuth: ", np.degrees(azimuth))
+                        print("elevation: ", np.degrees(elevation))
+                        print("range: ", range)
+                        print("intensity: ", intensity)
+                        print("azimuth_index: ", azimuth_index)
+                        print("elevation_index: ", elevation_index)            
+                        # raise Exception("NON ZERO")
                     
+                    overlap_count = overlap_count + 1
+                    if range < 10 :
+                        self.range_img_overlaps[elevation_index, azimuth_index, :] = [1, 1]
+                    else:
+                        self.range_img_overlaps[elevation_index, azimuth_index, :] = [2, 2]
+                        
 
-            self.range_img[elevation_index, azimuth_index, :] = [range, intensity]
+                self.range_img[elevation_index, azimuth_index, :] = [range, intensity]
 
 
         if VERBOSE:
-            print("Number of MAPPED non-zero datapoints (Range image): ", int(len(np.nonzero(self.range_img)[0]) / 2))
-            print("Number of ORIGINAL non-zero datapoints (Spherical): ", int(len(np.nonzero(self.spherical_data[:, 0])[0])))
+            print("Number of MAPPED non-zero Range datapoints (Range image): ", len(np.nonzero(self.range_img[:, :, 0])[0]))
+            print("Number of MAPPED non-zero Intensity datapoints (Range image): ", len(np.nonzero(self.range_img[:, :, 1])[0]))
+            print("Number of ORIGINAL non-zero Range datapoints (Spherical): ", int(len(np.nonzero(self.spherical_data[point_start:point_end, 2])[0])))
+            print("Number of ORIGINAL non-zero Intensity datapoints (Spherical): ", int(len(np.nonzero(self.spherical_data[point_start:point_end, 3])[0])))
+            # print("Number of ORIGINAL non-zero datapoints (Spherical): ", int(len(np.nonzero(self.spherical_data[:, 0])[0])))
+            print("Number of ORIGINAL non-zero Intensity datapoints (Cartesian): ", int(len(np.nonzero(self.cartesian_data[point_start:point_end, 3])[0])))
             print("Number of ORIGINAL non-zero datapoints (Cartesian): ", int(len(np.nonzero(self.cartesian_data[:, 0])[0])))
             print("Number of overlapped datapoints: ", overlap_count)
         
@@ -143,9 +207,12 @@ class SensorData:
 
         cos_e = np.cos(elevation)
 
-        x = np.multiply(range, np.multiply(np.cos(azimuth), cos_e))
-        y = np.multiply(range, np.multiply(np.sin(azimuth), cos_e))
-        z = np.multiply(range, np.sin(elevation))
+        x = range * (np.cos(azimuth) * cos_e)
+        y = range * (np.sin(azimuth) * cos_e)
+        z = range * np.sin(elevation)
+        # x = np.multiply(range, np.multiply(np.cos(azimuth), cos_e))
+        # y = np.multiply(range, np.multiply(np.sin(azimuth), cos_e))
+        # z = np.multiply(range, np.sin(elevation))
 
         return np.vstack((x, y, z, intensity)).T
 
@@ -157,11 +224,13 @@ class SensorData:
         z = data[:, 2]
         intensity = data[:, 3]
 
-        range = np.linalg.norm([(x, y, z), origin])
+        range = np.sqrt(x**2 + y**2 + z**2)
+        # range = np.linalg.norm([(x, y, z), origin])
 
         azimuth = np.arctan2(y, x)
         
-        elevation = np.arcsin(np.divide(z, range))
+        elevation = np.arcsin(z / range)
+        # elevation = np.arcsin(np.divide(z, range))
 
         return np.vstack((azimuth, elevation, range, intensity)).T 
 
@@ -170,14 +239,20 @@ class SensorData:
         if selection == 'both':
             plt.subplot(2, 1, 1)
             if color:
-                plt.imshow(self.range_img[:, :, 0])
+                if OVERLAPS:
+                    plt.imshow(self.range_img_overlaps[:, :, 0])
+                else:
+                    plt.imshow(self.range_img[:, :, 0])
             else:
                 plt.imshow(self.range_img[:, :, 0], cmap='gray')
             plt.title("Distance")
 
             plt.subplot(2, 1, 2)
             if color:
-                plt.imshow(self.range_img[:, :, 1])
+                if OVERLAPS:
+                    plt.imshow(self.range_img_overlaps[:, :, 1])
+                else:
+                    plt.imshow(self.range_img[:, :, 1])
             else:
                 plt.imshow(self.range_img[:, :, 1], cmap='gray')
             plt.title("Intensity")
@@ -201,7 +276,16 @@ class SensorData:
         if save == True:
             output_dir = Path(OUTPUT)
             output_dir.mkdir(exist_ok=True)
-            fig.savefig(str(output_dir) + '/range_image_' + str(frame_id) + '.png', dpi=200)
+            if DISTORTED:
+                if OVERLAPS:
+                    fig.savefig(str(output_dir) + '/range_image_distorted_overlaps_' + str(frame_id) + '.png', dpi=200)
+                else:
+                    fig.savefig(str(output_dir) + '/range_image_distorted_' + str(frame_id) + '.png', dpi=200)
+            else:
+                if OVERLAPS:
+                    fig.savefig(str(output_dir) + '/range_image_overlaps_' + str(frame_id) + '.png', dpi=200)
+                else:
+                    fig.savefig(str(output_dir) + '/range_image_' + str(frame_id) + '.png', dpi=200)
         else:
             plt.show()
 
@@ -230,21 +314,29 @@ class SensorData:
 
                 raise Exception("The conversion loss is greater than the set threshold of " + str(threshold))
 
-    def plot_spherical_points_distribution(self):
-        plt.figure(figsize=(15,15))
+    def plot_spherical_points_distribution(self, save=True):
+        fig = plt.figure(figsize=(20,20))
         for col_idx, col_name in enumerate(["azimuth", "elevation", "range", "intensity"]):
             plt.subplot(2,2, col_idx + 1)
             plt.hist(np.degrees(self.spherical_data[:, np.r_[col_idx:col_idx+1]]), alpha=0.5)
+            plt.xlabel(col_name)
+            plt.ylabel('Frequency')
             plt.title("Distribution of " + col_name)
-        plt.show()
+
+        if save == True:
+            output_dir = Path(OUTPUT)
+            output_dir.mkdir(exist_ok=True)
+            fig.savefig(str(output_dir) + '/spherical_pointclouds_distribution_' + str(frame_id) + '.png', dpi=200)
+        else:
+            plt.show()
 
 def main():
 
     # Convert Point Cloud to Range Map
     lidar_data = SensorData(input_file=lidar_path, beam_count=32, rpm=600)
     lidar_data.generate_range_img()
-    # lidar_data.plot_range_img()
-    lidar_data.plot_spherical_points_distribution()
+    lidar_data.plot_range_img(save=SAVE)
+    # lidar_data.plot_spherical_points_distribution(save=False)
     
 
     if TEST:

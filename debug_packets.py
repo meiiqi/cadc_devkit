@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-for frame_id in range(2, 10):
+for frame_id in range(1, 2):
     print("frame_id:",frame_id)
 
     input_dir = 'input'
@@ -46,7 +46,7 @@ for frame_id in range(2, 10):
         if frame_raw_data.shape[1] != packet_size:
             raise Exception("Packet Size not as expected")
 
-    print(frame_raw_data.shape)
+    print("frame_raw_data.shape:", frame_raw_data.shape)
 
 
     # Init 
@@ -298,12 +298,13 @@ for frame_id in range(2, 10):
 
 
     # PLOT RANGE IMAGE
-    # fig = plt.figure()
+    fig = plt.figure()
+    plt.imshow(range_image[: ,:, 0])
     # plt.imshow(overlaps_image[: ,:, 0])
-    # plt.ylabel("Elevation Values")
-    # plt.xlabel("Azimuth Values")
-    # plt.title("Range image - Distance")
-    # plt.show()
+    plt.ylabel("Elevation Values")
+    plt.xlabel("Azimuth Values")
+    plt.title("Range image - Distance")
+    plt.show()
 
     print("Overlap count:", overlap_count)
 
